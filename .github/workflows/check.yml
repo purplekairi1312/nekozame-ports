@@ -1,0 +1,51 @@
+name: check
+
+# on every change: the catalog is complete and docs/catalog.md matches it.
+# every monday: each port's download is still there (an issue if one broke), and the
+# projects that look like ports and aren't in the catalog yet (one issue, kept up to date)
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  catalog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: The catalog is complete
+        run: python3 tools/catalog.py validate
+
+  weekly:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Every port's download is still there
+        run: |
+          if python3 tools/catalog.py sources > sources.md 2> broken.txt; then
+            echo "all there"
+          else
+            title="Ports whose download broke"
+            body="$(cat broken.txt)"$'\n\n'"$(cat sources.md)"
+            n=$(gh issue list --state open --search "in:title \"$title\"" --json number -q '.[0].number')
+            if [ -n "$n" ]; then gh issue edit "$n" --body "$body"; else gh issue create --title "$title" --body "$body"; fi
+          fi
+
+      - name: New candidates
+        run: |
+          python3 tools/catalog.py candidates > candidates.md
+          title="Port candidates to look at"
+          n=$(gh issue list --state open --search "in:title \"$title\"" --json number -q '.[0].number')
+          if [ -n "$n" ]; then gh issue edit "$n" --body-file candidates.md; else gh issue create --title "$title" --body-file candidates.md; fi

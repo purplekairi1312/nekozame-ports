@@ -1,0 +1,513 @@
+#!/usr/bin/env python3
+"""nekozame-ports: ports, decomps and recomps for GNU/Linux. Games rebuilt to run
+natively (from console games, or the old PC classics' source code), from a reviewed
+catalog, installed in a step, with a launcher each (and in Steam, if it's there).
+
+  nekozame-ports                  pick what to install
+  nekozame-ports list             every port in the catalog, and what's installed
+  nekozame-ports info NAME        what it plays, what you need, where it's from
+  nekozame-ports install NAME...  install (by its name or id)
+  nekozame-ports update           the installed ones to their newest release
+  nekozame-ports remove NAME...   uninstall
+  nekozame-ports check            the newest catalog, and updates (weekly, by itself)
+
+Where they come from:
+  flathub   sandboxed apps, checked by Flathub. Used whenever a port is there.
+  github    the project's own releases, run unsandboxed like any program you download.
+            Only projects in the catalog: each was looked at before it was added.
+
+Most ports need your own copy of the game (a ROM, or the game's files): `info` says
+what, and the first start says it again.
+
+The catalog is https://github.com/purplekairi1312/nekozame-ports/blob/main/catalog.json
+GPL-3.0-or-later.
+"""
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tarfile
+import tempfile
+import time
+import urllib.error
+import urllib.request
+import zipfile
+
+HOME = os.path.expanduser("~")
+HERE = os.path.dirname(os.path.realpath(__file__))
+STATE = os.path.join(HOME, ".local/state/nekozame/ports.json")
+PORTS = os.path.join(HOME, ".local/share/nekozame/ports")
+APPS = os.path.join(HOME, ".local/share/applications")
+LAUNCHERS = os.path.join(PORTS, "launchers")  # one script per port (ES-DE's Ports system runs these)
+CACHE = os.path.join(HOME, ".cache/nekozame-ports/catalog.json")
+CATALOG_URL = "https://raw.githubusercontent.com/purplekairi1312/nekozame-ports/main/catalog.json"
+# the catalog that came with it: next to the program, or where a system installed it
+BUNDLED = [os.path.join(HERE, "catalog.json"), "/usr/share/nekozame-ports/catalog.json"]
+UA = {"User-Agent": "nekozame-ports (https://github.com/purplekairi1312/nekozame-ports)"}
+
+
+def say(*a):
+    print(*a, flush=True)
+
+
+def get(url, timeout=30):
+    h = dict(UA)
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if token and "api.github.com" in url:
+        h["Authorization"] = f"Bearer {token}"
+    with urllib.request.urlopen(urllib.request.Request(url, headers=h), timeout=timeout) as r:
+        return json.load(r)
+
+
+def load():
+    try:
+        st = json.load(open(STATE))
+    except (OSError, ValueError):
+        st = {}
+    for k in ("seen", "installed"):
+        st.setdefault(k, {})
+    return st
+
+
+def save(st):
+    os.makedirs(os.path.dirname(STATE), exist_ok=True)
+    with open(STATE + ".new", "w") as f:
+        json.dump(st, f, indent=1)
+    os.replace(STATE + ".new", STATE)
+
+
+def slug(text):
+    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+
+
+# --- the catalog -------------------------------------------------------------------
+
+def catalog(fresh=False):
+    """the catalog's ports: the newest from GitHub (once a day), or the one that came with it."""
+    if fresh or not os.path.exists(CACHE) or time.time() - os.path.getmtime(CACHE) > 86400:
+        try:
+            data = get(CATALOG_URL)
+            if isinstance(data.get("ports"), list):
+                os.makedirs(os.path.dirname(CACHE), exist_ok=True)
+                with open(CACHE + ".new", "w") as f:
+                    json.dump(data, f)
+                os.replace(CACHE + ".new", CACHE)
+        except (OSError, ValueError):
+            pass  # offline: the last one, or the one that came with it
+    for path in [CACHE] + BUNDLED:
+        try:
+            ports = json.load(open(path))["ports"]
+        except (OSError, ValueError, KeyError):
+            continue
+        for p in ports:
+            p["key"] = p["source"]
+            p["from"], p["ref"] = p["source"].split(":", 1)
+        return ports
+    return []
+
+
+def find(st, words):
+    every = catalog()
+    out = []
+    for w in words:
+        if re.match(r"^github:[\w.-]+/[\w.-]+$", w):  # a project that isn't in the catalog
+            out.append(unlisted(w))
+            continue
+        hit = next((p for p in every if w.lower() in (p["id"], p["key"].lower(), p["ref"].lower(),
+                                                      p["name"].lower(), slug(p["name"]))), None)
+        hit = hit or next((p for p in every if w.lower() in p["name"].lower()), None)
+        if hit:
+            out.append(hit)
+        else:
+            say(f"  no port called {w} (nekozame-ports list shows them all)")
+    return [p for p in out if p]
+
+
+def unlisted(source):
+    """a github project that isn't in the catalog: installed only if you say so."""
+    repo = source.split(":", 1)[1]
+    say(f"  {repo} isn't in nekozame-ports' catalog: nobody has looked at it. It runs")
+    say("  unsandboxed like any program you download. Look at its page first:")
+    say(f"  https://github.com/{repo}")
+    if not ask(f"Install {repo} anyway?"):
+        return None
+    return {"id": slug(repo), "name": repo.split("/")[1], "plays": "", "system": "", "kind": "unlisted",
+            "source": source, "key": source, "from": "github", "ref": repo,
+            "needs": "See its page.", "page": f"https://github.com/{repo}"}
+
+
+def ask(question):
+    if shutil.which("gum") and sys.stdin.isatty():
+        return subprocess.run(["gum", "confirm", "--default=false", question]).returncode == 0
+    try:
+        return input(f"{question} [y/N] ").strip().lower() in ("y", "yes")
+    except EOFError:
+        return False
+
+
+# --- downloads ---------------------------------------------------------------------
+
+class Wait(Exception):
+    """GitHub's limit for the hour is used up"""
+
+
+def linux_asset(assets, pattern=None):
+    """the release's build for GNU/Linux on x86-64: the catalog's pattern if it has one,
+    or else a Flatpak bundle, an AppImage, or an archive with the program in it"""
+    if pattern:
+        return next((a for a in assets if re.search(pattern, a["name"])), None)
+    best = None
+    for a in assets:
+        n = a["name"].lower()
+        if re.search(r"arm|aarch64|i686|i386|win|osx|mac|darwin|android|ios|switch|\.sha|\.sig|source", n):
+            continue
+        if n.endswith(".flatpak"):
+            rank = 0
+        elif n.endswith(".appimage"):
+            rank = 1
+        elif re.search(r"linux|flatpak|appimage|steamdeck|steam-deck", n) and n.endswith((".zip", ".tar.gz", ".tgz", ".tar.xz")):
+            rank = 2 if "flatpak" in n or "appimage" in n else 3
+        else:
+            continue
+        if best is None or rank < best[0]:
+            best = (rank, a)
+    return best[1] if best else None
+
+
+def github_release(repo, pattern=None):
+    try:
+        r = get(f"https://api.github.com/repos/{repo}/releases/latest")
+    except urllib.error.HTTPError as err:
+        if err.code in (403, 429):
+            raise Wait() from err
+        raise
+    return r.get("tag_name"), linux_asset(r.get("assets", []), pattern)
+
+
+# --- installing --------------------------------------------------------------------
+
+def flatpak(*args):
+    return subprocess.run(["flatpak", *args], capture_output=True, text=True)
+
+
+def desktop_entry(p, exe, workdir, icon=""):
+    os.makedirs(APPS, exist_ok=True)
+    path = os.path.join(APPS, f"nekozame-port-{slug(p['name'])}.desktop")
+    with open(path, "w") as f:
+        f.write(f"[Desktop Entry]\nType=Application\nName={p['name']}\nComment={p['plays']}\n"
+                f"Exec=\"{exe}\"\nPath={workdir}\nIcon={icon or 'applications-games'}\n"
+                f"Categories=Game;\nTerminal=false\n")
+    return os.path.basename(path)
+
+
+def find_program(root):
+    """an archive's program: an AppImage, a launcher script, or the biggest executable"""
+    files = [os.path.join(d, n) for d, _, ns in os.walk(root) for n in ns]
+    for f in files:
+        if f.lower().endswith(".appimage"):
+            return f
+    scripts = [f for f in files if f.endswith(".sh") and os.path.dirname(f) == root]
+    if scripts:
+        return scripts[0]
+    elf = []
+    for f in files:
+        try:
+            with open(f, "rb") as h:
+                magic = h.read(4)
+        except OSError:
+            continue
+        if magic == b"\x7fELF" and not re.search(r"\.so(\.|$)", os.path.basename(f)):
+            elf.append(f)
+    return max(elf, key=os.path.getsize) if elf else None
+
+
+def install_github(p, st):
+    tag, asset = github_release(p["ref"], p.get("asset"))
+    if not asset:
+        say(f"  {p['name']}: no GNU/Linux build in its newest release")
+        return False
+    dest = os.path.join(PORTS, slug(p["name"]))
+    with tempfile.TemporaryDirectory() as tmp:
+        f = os.path.join(tmp, asset["name"])
+        say(f"  {p['name']} {tag}: {asset['name']}")
+        urllib.request.urlretrieve(asset["browser_download_url"], f)
+        name = asset["name"].lower()
+        if name.endswith((".zip", ".tar.gz", ".tgz", ".tar.xz")):  # opened: what's inside decides
+            out = os.path.join(tmp, "x")
+            if name.endswith(".zip"):
+                zipfile.ZipFile(f).extractall(out)
+            else:
+                with tarfile.open(f) as t:
+                    t.extractall(out, filter="data")
+            bundles = [os.path.join(d, n) for d, _, ns in os.walk(out) for n in ns if n.endswith(".flatpak")]
+            if bundles:
+                f, name = bundles[0], bundles[0].lower()
+            else:
+                shutil.rmtree(dest, ignore_errors=True)
+                shutil.copytree(out, dest)
+                prog = find_program(dest)
+                if not prog:
+                    say(f"  {p['name']}: couldn't find its program in {asset['name']}")
+                    return False
+                for d, _, ns in os.walk(dest):  # zips lose the executable bit
+                    for n in ns:
+                        fp = os.path.join(d, n)
+                        if n.lower().endswith((".appimage", ".sh")) or fp == prog:
+                            os.chmod(fp, 0o755)
+                st["installed"][p["key"]] = {"tag": tag, "kind": "files", "path": dest,
+                                             "desktop": desktop_entry(p, prog, os.path.dirname(prog))}
+                return True
+        if name.endswith(".flatpak"):  # a Flatpak bundle: sandboxed, like Flathub's
+            apps = lambda: set(flatpak("list", "--user", "--app", "--columns=application").stdout.split())
+            before = apps()
+            r = flatpak("install", "--user", "-y", "--reinstall", "--bundle", f)
+            if r.returncode:
+                say(f"  {p['name']}: {r.stderr.strip()[-200:]}")
+                return False
+            added = sorted(apps() - before)
+            app = added[0] if added else st["installed"].get(p["key"], {}).get("app", "")
+            st["installed"][p["key"]] = {"tag": tag, "kind": "flatpak-bundle", "app": app}
+            return True
+        if name.endswith(".appimage"):
+            os.makedirs(dest, exist_ok=True)
+            target = os.path.join(dest, asset["name"])
+            shutil.copyfile(f, target)
+            os.chmod(target, 0o755)
+            st["installed"][p["key"]] = {"tag": tag, "kind": "appimage", "path": dest,
+                                         "desktop": desktop_entry(p, target, dest)}
+            return True
+    return False
+
+
+def install(p, st):
+    if p["from"] == "flathub":
+        if not shutil.which("flatpak"):
+            say(f"  {p['name']}: needs Flatpak, with Flathub added")
+            return False
+        r = flatpak("install", "--user", "-y", "flathub", p["ref"])
+        if r.returncode:
+            say(f"  {p['name']}: {r.stderr.strip()[-200:]}")
+            return False
+        st["installed"][p["key"]] = {"kind": "flathub", "app": p["ref"]}
+        return True
+    return install_github(p, st)
+
+
+def launcher(p, st):
+    """the port's script, named as it's shown (ES-DE's Ports system lists these). On the
+    first start it says what the port needs, once."""
+    i = st["installed"].get(p["key"], {})
+    os.makedirs(LAUNCHERS, exist_ok=True)
+    path = os.path.join(LAUNCHERS, f"{p['name'].replace('/', '-')}.sh")
+    if i.get("app"):
+        body = f"exec flatpak run {i['app']}"
+    else:
+        entry = open(os.path.join(APPS, i["desktop"])).read()
+        exe = re.search(r'(?m)^Exec="?(.*?)"?$', entry).group(1)
+        body = f'cd "{os.path.dirname(exe)}" && exec "{exe}"'
+    needs = p.get("needs", "")
+    first = ""
+    if needs and not needs.startswith("Nothing"):
+        told = os.path.join(PORTS, f".told-{slug(p['name'])}")
+        text = f"{p['name']} needs: {needs}".replace('"', '\\"')
+        first = (f'if [ ! -e "{told}" ]; then\n'
+                 f'    command -v zenity >/dev/null && zenity --info --title="{p["name"]}" --text="{text}" --width=420\n'
+                 f'    touch "{told}"\nfi\n')
+    with open(path, "w") as f:
+        f.write(f"#!/bin/sh\n# {p['name']}: {p['plays']} (nekozame-ports)\n{first}{body}\n")
+    os.chmod(path, 0o755)
+    i["launcher"] = path
+
+
+def to_steam(st, keys):
+    """the installed ports in Steam: through nekozame os's tool (with art, in the Ports
+    tab), or SteamOS's and Bazzite's own"""
+    names = []
+    for k in keys:
+        i = st["installed"].get(k, {})
+        if i.get("desktop"):
+            names.append(os.path.join(APPS, i["desktop"]))
+        elif i.get("app"):
+            names.append(i["app"] + ".desktop")
+    if not names:
+        return
+    running = subprocess.run(["pgrep", "-x", "steam"], capture_output=True).returncode == 0
+    nekozame = "/usr/libexec/nekozame-add-to-steam"
+    if os.path.exists(nekozame):
+        base = [os.path.basename(n) for n in names]
+        if running:  # in now (half a minute), then into the Ports tab
+            say("  adding them to Steam…")
+            subprocess.run([nekozame, *base], capture_output=True)
+            if shutil.which("nekozame-emu"):
+                subprocess.run(["nekozame-emu", "steam", "tabs"], capture_output=True)
+        else:  # once Steam starts
+            subprocess.Popen([nekozame, *base], start_new_session=True,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    elif shutil.which("steamos-add-to-steam") and running:
+        for n in names:
+            full = n if os.path.isabs(n) else next(
+                (os.path.join(d, n) for d in (os.path.join(HOME, ".local/share/flatpak/exports/share/applications"),
+                                              "/var/lib/flatpak/exports/share/applications") if os.path.exists(os.path.join(d, n))), None)
+            if full:
+                subprocess.run(["steamos-add-to-steam", full], capture_output=True)
+        say("  added to Steam")
+    else:
+        say("  to have them in Steam: Steam → Add a Game → Add a Non-Steam Game")
+
+
+def remove(p, st):
+    i = st["installed"].pop(p["key"], None)
+    if not i:
+        return
+    if i.get("app"):
+        flatpak("uninstall", "--user", "-y", i["app"])
+    if i.get("path"):
+        shutil.rmtree(i["path"], ignore_errors=True)
+    for f in (os.path.join(APPS, i["desktop"]) if i.get("desktop") else "", i.get("launcher", "")):
+        try:
+            os.remove(f)
+        except OSError:
+            pass
+
+
+# --- commands ----------------------------------------------------------------------
+
+def line(p, st):
+    mark = "●" if p["key"] in st["installed"] else "○"
+    return f"{mark} {p['name']}: {p['plays']} ({p['system']}, {p['kind']})  [{p['from']}]"
+
+
+def info(p, st):
+    say(f"{p['name']}: {p['plays']}")
+    say(f"  {p['kind']} of a {p['system']} game" if p["system"] != "PC" else f"  {p['kind']}")
+    say(f"  needs: {p.get('needs', '')}")
+    say(f"  from: {p['from']} ({'sandboxed' if p['from'] == 'flathub' else 'unsandboxed, from its own releases'})")
+    say(f"  page: {p.get('page', '')}")
+    i = st["installed"].get(p["key"])
+    say(f"  installed{' (' + i['tag'] + ')' if i and i.get('tag') else ''}" if i else "  not installed")
+
+
+def check(st, quiet=False):
+    """the newest catalog: the ports added since the last look, and updates waiting."""
+    every = catalog(fresh=True)
+    before = set(st["seen"])
+    now = time.strftime("%Y-%m-%d")
+    new = [p for p in every if p["key"] not in before]
+    for p in every:
+        st["seen"].setdefault(p["key"], now)
+    save(st)
+    if new and before and not quiet:
+        names = ", ".join(p["name"] for p in new[:6]) + ("…" if len(new) > 6 else "")
+        subprocess.run(["notify-send", "-a", "nekozame-ports", "-i", "applications-games",
+                        f"{len(new)} new port{'s' if len(new) > 1 else ''}", f"{names}\nnekozame-ports"],
+                       capture_output=True)
+    return new
+
+
+def pick(st):
+    new = {p["key"] for p in check(st, quiet=True)}
+    recent = {k for k, d in st["seen"].items() if d >= time.strftime("%Y-%m-%d", time.localtime(time.time() - 14 * 86400))}
+    every = [p for p in catalog() if p["key"] not in st["installed"]]
+    every.sort(key=lambda p: (p["key"] not in new and p["key"] not in recent, p["name"].lower()))
+    if not every:
+        say("everything in the catalog is installed <3")
+        return 0
+    labels = {(("new  " if p["key"] in new or p["key"] in recent else "") + line(p, st)): p for p in every}
+    if shutil.which("gum"):
+        r = subprocess.run(["gum", "choose", "--no-limit", "--height", "20", "--header",
+                            "Ports to install (space picks, enter installs):", *labels], stdout=subprocess.PIPE, text=True)
+        chosen = [labels[l] for l in r.stdout.splitlines() if l in labels]
+    else:
+        names = list(labels)
+        for n, l in enumerate(names, 1):
+            say(f"{n:3}  {l}")
+        try:
+            picked = input("Numbers to install, with spaces between: ").split()
+        except EOFError:
+            picked = []
+        chosen = [labels[names[int(x) - 1]] for x in picked if x.isdigit() and 0 < int(x) <= len(names)]
+    return do_install(st, chosen)
+
+
+def do_install(st, ports):
+    done = []
+    for p in ports:
+        say(f"{p['name']}: needs {p.get('needs', '')}")
+        try:
+            ok = install(p, st)
+        except Wait:
+            say(f"  {p['name']}: GitHub's limit for the hour is used up; try again in a while")
+            continue
+        except OSError as err:
+            say(f"  {p['name']}: {err}")
+            continue
+        if ok:
+            launcher(p, st)
+            done.append(p["key"])
+            say(f"  ✓ {p['name']}")
+        save(st)
+    to_steam(st, done)
+    if done:
+        say(f"launchers in {LAUNCHERS}")
+    return 0
+
+
+def main(argv):
+    st = load()
+    cmd = argv[0] if argv else ""
+    if cmd == "":
+        if not sys.stdin.isatty():
+            say(__doc__)
+            return 0
+        return pick(st)
+    if cmd == "list":
+        for p in catalog():
+            say(line(p, st))
+        return 0
+    if cmd == "info":
+        for p in find(st, argv[1:]):
+            info(p, st)
+        return 0
+    if cmd == "check":
+        new = check(st)
+        say(f"{len(new)} new in the catalog" + (": " + ", ".join(p["name"] for p in new) if new else ""))
+        return 0
+    if cmd == "install":
+        return do_install(st, find(st, argv[1:]))
+    if cmd == "remove":
+        for p in find(st, argv[1:]):
+            remove(p, st)
+            say(f"  {p['name']} removed")
+        save(st)
+        return 0
+    if cmd == "update":
+        if shutil.which("flatpak"):
+            flatpak("update", "--user", "-y")
+        every = {p["key"]: p for p in catalog()}
+        for key, i in list(st["installed"].items()):
+            if not key.startswith("github:"):
+                continue
+            p = every.get(key) or {"key": key, "id": slug(key), "name": key.split("/")[-1], "plays": "", "system": "",
+                                   "kind": "unlisted", "from": "github", "ref": key.split(":", 1)[1], "needs": ""}
+            try:
+                tag, _ = github_release(p["ref"], p.get("asset"))
+            except Wait:
+                say("  GitHub's limit for the hour is used up: the rest next time")
+                break
+            except OSError:
+                continue
+            if tag and tag != i.get("tag"):
+                say(f"  {p['name']}: {i.get('tag')} → {tag}")
+                if install(p, st):
+                    launcher(p, st)
+                save(st)
+        say("up to date")
+        return 0
+    say(__doc__)
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

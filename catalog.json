@@ -1,0 +1,245 @@
+{
+  "about": "nekozame-ports' catalog: every port in it was looked at before it was added. Each one: what it plays, where it comes from, what you need to play it. tools/catalog.py checks it.",
+  "ports": [
+    {
+      "id": "shipwright",
+      "name": "Ship of Harkinian",
+      "plays": "The Legend of Zelda: Ocarina of Time",
+      "system": "Nintendo 64",
+      "kind": "decomp",
+      "source": "github:HarbourMasters/Shipwright",
+      "needs": "Your own Ocarina of Time ROM (N64). It asks for it on first start and makes its game file from it.",
+      "page": "https://github.com/HarbourMasters/Shipwright"
+    },
+    {
+      "id": "2ship2harkinian",
+      "name": "2 Ship 2 Harkinian",
+      "plays": "The Legend of Zelda: Majora's Mask",
+      "system": "Nintendo 64",
+      "kind": "decomp",
+      "source": "github:HarbourMasters/2ship2harkinian",
+      "needs": "Your own Majora's Mask ROM (N64, USA). It asks for it on first start.",
+      "page": "https://github.com/HarbourMasters/2ship2harkinian"
+    },
+    {
+      "id": "starship",
+      "name": "Starship",
+      "plays": "Star Fox 64",
+      "system": "Nintendo 64",
+      "kind": "decomp",
+      "source": "github:HarbourMasters/Starship",
+      "needs": "Your own Star Fox 64 ROM (N64, USA 1.1). It asks for it on first start.",
+      "page": "https://github.com/HarbourMasters/Starship"
+    },
+    {
+      "id": "spaghettikart",
+      "name": "SpaghettiKart",
+      "plays": "Mario Kart 64",
+      "system": "Nintendo 64",
+      "kind": "decomp",
+      "source": "github:HarbourMasters/SpaghettiKart",
+      "needs": "Your own Mario Kart 64 ROM (N64, USA). It asks for it on first start.",
+      "page": "https://github.com/HarbourMasters/SpaghettiKart"
+    },
+    {
+      "id": "zelda64recomp",
+      "name": "Zelda 64: Recompiled",
+      "plays": "The Legend of Zelda: Majora's Mask",
+      "system": "Nintendo 64",
+      "kind": "recomp",
+      "source": "github:Zelda64Recomp/Zelda64Recomp",
+      "needs": "Your own Majora's Mask ROM (N64, USA). It asks for it on first start.",
+      "page": "https://github.com/Zelda64Recomp/Zelda64Recomp"
+    },
+    {
+      "id": "unleashedrecomp",
+      "name": "Unleashed Recompiled",
+      "plays": "Sonic Unleashed",
+      "system": "Xbox 360",
+      "kind": "recomp",
+      "source": "github:hedge-dev/UnleashedRecomp",
+      "needs": "Your own Sonic Unleashed game files (Xbox 360), and its title update. Its installer asks for them on first start.",
+      "page": "https://github.com/hedge-dev/UnleashedRecomp"
+    },
+    {
+      "id": "perfectdark",
+      "name": "Perfect Dark",
+      "plays": "Perfect Dark",
+      "system": "Nintendo 64",
+      "kind": "decomp",
+      "source": "github:fgsfdsfgs/perfect_dark",
+      "needs": "Your own Perfect Dark ROM (N64, USA 1.1), named pd.ntsc-final.z64, in its data folder. Its page says where that is.",
+      "page": "https://github.com/fgsfdsfgs/perfect_dark"
+    },
+    {
+      "id": "sm64coopdx",
+      "name": "sm64coopdx",
+      "plays": "Super Mario 64, with online co-op",
+      "system": "Nintendo 64",
+      "kind": "decomp",
+      "source": "github:coop-deluxe/sm64coopdx",
+      "needs": "Your own Super Mario 64 ROM (N64, USA). It asks for it on first start.",
+      "page": "https://github.com/coop-deluxe/sm64coopdx"
+    },
+    {
+      "id": "nxengine-evo",
+      "name": "NXEngine-evo",
+      "plays": "Cave Story",
+      "system": "PC",
+      "kind": "reimplementation",
+      "source": "github:nxengine/nxengine-evo",
+      "needs": "Cave Story's data, from the free original game. Its page says how to get it.",
+      "page": "https://github.com/nxengine/nxengine-evo"
+    },
+    {
+      "id": "srb2",
+      "name": "Sonic Robo Blast 2",
+      "plays": "A 3D Sonic fan game",
+      "system": "PC",
+      "kind": "fan game",
+      "source": "flathub:org.srb2.SRB2",
+      "needs": "Nothing: the game comes with it.",
+      "page": "https://www.srb2.org"
+    },
+    {
+      "id": "easyrpg",
+      "name": "EasyRPG Player",
+      "plays": "RPG Maker 2000 and 2003 games",
+      "system": "PC",
+      "kind": "reimplementation",
+      "source": "flathub:org.easyrpg.player",
+      "needs": "The RPG Maker 2000 or 2003 games you want to play.",
+      "page": "https://easyrpg.org"
+    },
+    {
+      "id": "gzdoom",
+      "name": "GZDoom",
+      "plays": "Doom, Heretic, Hexen, Strife",
+      "system": "PC",
+      "kind": "source port",
+      "source": "flathub:org.zdoom.GZDoom",
+      "needs": "The games' WAD files (DOOM.WAD, DOOM2.WAD...), or the free Freedoom.",
+      "page": "https://zdoom.org"
+    },
+    {
+      "id": "crispy-doom",
+      "name": "Crispy Doom",
+      "plays": "Doom, as it was, sharper",
+      "system": "PC",
+      "kind": "source port",
+      "source": "flathub:io.github.fabiangreffrath.Doom",
+      "needs": "The games' WAD files (DOOM.WAD, DOOM2.WAD...), or the free Freedoom.",
+      "page": "https://github.com/fabiangreffrath/crispy-doom"
+    },
+    {
+      "id": "doomsday",
+      "name": "Doomsday",
+      "plays": "Doom, Heretic, Hexen",
+      "system": "PC",
+      "kind": "source port",
+      "source": "flathub:net.dengine.Doomsday",
+      "needs": "The games' WAD files.",
+      "page": "https://dengine.net"
+    },
+    {
+      "id": "raze",
+      "name": "Raze",
+      "plays": "Duke Nukem 3D, Blood, Shadow Warrior and other Build engine games",
+      "system": "PC",
+      "kind": "source port",
+      "source": "flathub:org.zdoom.Raze",
+      "needs": "The games' own files.",
+      "page": "https://github.com/ZDoom/Raze"
+    },
+    {
+      "id": "dhewm3",
+      "name": "Dhewm 3",
+      "plays": "Doom 3",
+      "system": "PC",
+      "kind": "source port",
+      "source": "flathub:org.dhewm3.Dhewm3",
+      "needs": "Doom 3's game files (the base folder).",
+      "page": "https://dhewm3.org"
+    },
+    {
+      "id": "ironwail",
+      "name": "Ironwail",
+      "plays": "Quake",
+      "system": "PC",
+      "kind": "source port",
+      "source": "github:andrei-drexler/ironwail",
+      "needs": "Quake's id1 folder (pak0.pak, and pak1.pak for the full game), next to it or in its game folder.",
+      "page": "https://github.com/andrei-drexler/ironwail"
+    },
+    {
+      "id": "uhexen2",
+      "name": "Hammer of Thyrion",
+      "plays": "Hexen II",
+      "system": "PC",
+      "kind": "source port",
+      "source": "flathub:net.sourceforge.uhexen2.uhexen2",
+      "needs": "Hexen II's game files.",
+      "page": "https://uhexen2.sourceforge.net"
+    },
+    {
+      "id": "devilutionx",
+      "name": "DevilutionX",
+      "plays": "Diablo and Hellfire",
+      "system": "PC",
+      "kind": "reimplementation",
+      "source": "flathub:org.diasurgical.DevilutionX",
+      "needs": "DIABDAT.MPQ from your Diablo (or spawn.mpq from the free shareware version).",
+      "page": "https://github.com/diasurgical/devilutionX"
+    },
+    {
+      "id": "openmw",
+      "name": "OpenMW",
+      "plays": "The Elder Scrolls III: Morrowind",
+      "system": "PC",
+      "kind": "reimplementation",
+      "source": "flathub:org.openmw.OpenMW",
+      "needs": "Morrowind's game files. Its launcher asks for them on first start.",
+      "page": "https://openmw.org"
+    },
+    {
+      "id": "openrct2",
+      "name": "OpenRCT2",
+      "plays": "RollerCoaster Tycoon 2",
+      "system": "PC",
+      "kind": "reimplementation",
+      "source": "flathub:io.openrct2.OpenRCT2",
+      "needs": "RollerCoaster Tycoon 2's files (or RollerCoaster Tycoon Classic's). It asks for them on first start.",
+      "page": "https://openrct2.io"
+    },
+    {
+      "id": "openttd",
+      "name": "OpenTTD",
+      "plays": "Transport Tycoon Deluxe",
+      "system": "PC",
+      "kind": "reimplementation",
+      "source": "flathub:org.openttd.OpenTTD",
+      "needs": "Nothing: free graphics and sounds are downloaded in the game.",
+      "page": "https://www.openttd.org"
+    },
+    {
+      "id": "augustus",
+      "name": "Augustus",
+      "plays": "Caesar III",
+      "system": "PC",
+      "kind": "reimplementation",
+      "source": "flathub:com.github.keriew.augustus",
+      "needs": "Caesar III's game files. It asks for them on first start.",
+      "page": "https://github.com/Keriew/augustus"
+    },
+    {
+      "id": "opentyrian",
+      "name": "OpenTyrian",
+      "plays": "Tyrian",
+      "system": "PC",
+      "kind": "source port",
+      "source": "flathub:com.github.opentyrian.OpenTyrian",
+      "needs": "Nothing: the freeware Tyrian 2.1 comes with it.",
+      "page": "https://github.com/opentyrian/opentyrian"
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+name: docs
+
+# the docs in the repo, published as github pages and as the wiki
+on:
+  push:
+    branches: [main]
+    paths: ["**.md", "docs/**", ".github/site/**", ".github/workflows/docs.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: docs
+  cancel-in-progress: true
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install markdown
+      - run: python3 .github/site/build.py pages _site
+      - uses: actions/upload-pages-artifact@v3
+      - id: deploy
+        uses: actions/deploy-pages@v4
+      - name: wiki
+        # the wiki only exists once its first page is made on github
+        continue-on-error: true
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git clone -q "https://x-access-token:$TOKEN@github.com/$GITHUB_REPOSITORY.wiki.git" wiki
+          find wiki -maxdepth 1 -name '*.md' -delete
+          python3 .github/site/build.py wiki wiki
+          cd wiki
+          git config user.name purplekairi1312
+          git config user.email purplekairi1312@gmail.com
+          git add -A
+          git diff --cached --quiet || { git commit -qm "Docs from $GITHUB_SHA"; git push -q; }
