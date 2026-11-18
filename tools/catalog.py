@@ -113,7 +113,8 @@ def sources(entries):
 
 
 def candidates(entries):
-    have = {p["source"] for p in entries}
+    # in the catalog, or looked at and left out on purpose (catalog.json's "skipped")
+    have = {p["source"] for p in entries} | {p["source"] for p in json.load(open(CATALOG)).get("skipped", [])}
     found = []
     for q in FLATHUB_SEARCHES:
         try:

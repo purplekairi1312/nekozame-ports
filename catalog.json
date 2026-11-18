@@ -240,6 +240,170 @@
       "source": "flathub:com.github.opentyrian.OpenTyrian",
       "needs": "Nothing: the freeware Tyrian 2.1 comes with it.",
       "page": "https://github.com/opentyrian/opentyrian"
+    },
+    {
+      "id": "chocolate-doom",
+      "name": "Chocolate Doom",
+      "plays": "Doom, Heretic, Hexen, Strife, exactly as in the 90s",
+      "system": "PC",
+      "kind": "source port",
+      "source": "flathub:org.chocolate_doom.ChocolateDoom",
+      "needs": "The game's WAD file (doom.wad, doom2.wad and so on).",
+      "page": "https://www.chocolate-doom.org"
+    },
+    {
+      "id": "theforceengine",
+      "name": "The Force Engine",
+      "plays": "Star Wars: Dark Forces",
+      "system": "PC",
+      "kind": "reimplementation",
+      "source": "flathub:io.github.theforceengine.tfe",
+      "needs": "Dark Forces' game files (DARK.GOB and the rest).",
+      "page": "https://theforceengine.github.io"
+    },
+    {
+      "id": "openjkdf2",
+      "name": "OpenJKDF2",
+      "plays": "Star Wars Jedi Knight: Dark Forces II and Mysteries of the Sith",
+      "system": "PC",
+      "kind": "reimplementation",
+      "source": "flathub:org.openjkdf2.OpenJKDF2",
+      "needs": "The game's files (the episode and resource folders).",
+      "page": "https://github.com/shinyquagsire23/OpenJKDF2"
+    },
+    {
+      "id": "dxx-rebirth",
+      "name": "DXX-Rebirth",
+      "plays": "Descent and Descent II",
+      "system": "PC",
+      "kind": "source port",
+      "source": "flathub:io.github.dxx_rebirth.dxx-rebirth",
+      "needs": "Descent's game files (descent.hog and descent.pig), or the free shareware version.",
+      "page": "https://www.dxx-rebirth.com"
+    },
+    {
+      "id": "openfodder",
+      "name": "Open Fodder",
+      "plays": "Cannon Fodder",
+      "system": "PC",
+      "kind": "reimplementation",
+      "source": "flathub:org.openfodder.OpenFodder",
+      "needs": "Cannon Fodder's game files (the DOS or Amiga version).",
+      "page": "https://github.com/OpenFodder/openfodder"
+    },
+    {
+      "id": "dunelegacy",
+      "name": "Dune Legacy",
+      "plays": "Dune II",
+      "system": "PC",
+      "kind": "reimplementation",
+      "source": "flathub:net.sourceforge.DuneLegacy",
+      "needs": "Dune II's PAK files.",
+      "page": "https://dunelegacy.sourceforge.net"
+    },
+    {
+      "id": "fheroes2",
+      "name": "fheroes2",
+      "plays": "Heroes of Might and Magic II",
+      "system": "PC",
+      "kind": "reimplementation",
+      "source": "flathub:io.github.ihhub.Fheroes2",
+      "needs": "Heroes II's game files (the free demo works too).",
+      "page": "https://ihhub.github.io/fheroes2/"
+    },
+    {
+      "id": "doukutsu-rs",
+      "name": "doukutsu-rs",
+      "plays": "Cave Story, with smooth high frame rates and co-op",
+      "system": "PC",
+      "kind": "reimplementation",
+      "source": "flathub:io.github.doukutsu_rs.doukutsu-rs",
+      "needs": "Cave Story's data, from the free original game. Its page says how to get it.",
+      "page": "https://github.com/doukutsu-rs/doukutsu-rs"
+    },
+    {
+      "id": "aerofoil",
+      "name": "Aerofoil",
+      "plays": "Glider PRO",
+      "system": "Macintosh",
+      "kind": "source port",
+      "source": "flathub:io.github.elasota.aerofoil",
+      "needs": "Nothing: Glider PRO's houses come with it.",
+      "page": "https://github.com/elasota/Aerofoil"
+    },
+    {
+      "id": "hydracastle",
+      "name": "Hydra Castle Labyrinth",
+      "plays": "Hydra Castle Labyrinth",
+      "system": "PC",
+      "kind": "source port",
+      "source": "flathub:io.github.ptitSeb.hydracastlelabyrinth",
+      "needs": "Nothing: the freeware game comes with it.",
+      "page": "https://github.com/ptitSeb/hydracastlelabyrinth"
+    },
+    {
+      "id": "shuusou-gyoku",
+      "name": "Shuusou Gyoku",
+      "plays": "Shuusou Gyoku, the first Seihou game",
+      "system": "PC",
+      "kind": "decomp",
+      "source": "flathub:net.nmlgc.rec98.sh01",
+      "needs": "The original game's data files. It says where to put them when it starts.",
+      "page": "https://github.com/nmlgc/ssg"
+    },
+    {
+      "id": "openmadoola",
+      "name": "OpenMadoola",
+      "plays": "The Wing of Madoola",
+      "system": "Famicom",
+      "kind": "reimplementation",
+      "source": "flathub:com.infochunk.OpenMadoola",
+      "needs": "The Famicom game's ROM.",
+      "page": "https://github.com/infochunk/OpenMadoola"
+    },
+    {
+      "id": "openq4",
+      "name": "openQ4",
+      "plays": "Quake 4",
+      "system": "PC",
+      "kind": "source port",
+      "source": "github:themuffinator/openQ4",
+      "needs": "Quake 4's game files (the q4base folder).",
+      "page": "https://github.com/themuffinator/openQ4"
+    }
+  ],
+  "skipped": [
+    {
+      "source": "flathub:io.github.maddecoder.Classic-RBDOOM-3-BFG",
+      "why": "a fork of RBDOOM-3-BFG's classic Doom; Chocolate, Crispy and GZDoom cover Doom"
+    },
+    {
+      "source": "flathub:net.sourceforge.quakespasm.Quakespasm",
+      "why": "Ironwail, already in, is Quakespasm made faster"
+    },
+    {
+      "source": "flathub:io.github.laserlicht.TowerOops",
+      "why": "a new GTK game in the style of an old one, not a port"
+    },
+    {
+      "source": "flathub:org.openomsi.openOMSI",
+      "why": "an early bus simulator remake that needs OMSI 2; not for a game library"
+    },
+    {
+      "source": "github:decompals/ido-static-recomp",
+      "why": "a compiler for decomp projects, not a game"
+    },
+    {
+      "source": "github:TanookiStudios/decomp-buddy",
+      "why": "an installer for other ports, not a port"
+    },
+    {
+      "source": "github:themuffinator/openPREY",
+      "why": "only early nightlies so far; look again when it has a release"
+    },
+    {
+      "source": "github:lunarmeadow/barrett",
+      "why": "small and quiet; look again later"
     }
   ]
 }
